@@ -122,7 +122,7 @@ public class HubActivity extends ActionBarActivity {
         }
 
         whiteCards = new String[10];
-        
+
         if(dealer){
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
@@ -130,7 +130,7 @@ public class HubActivity extends ActionBarActivity {
 
             //Choix d'une carte noir
             String[] blackCards = getResources().getStringArray(R.array.black);
-            blackCard = blackCards[rand.nextInt(blackCards.length + 1)];
+            blackCard = blackCards[rand.nextInt(blackCards.length - 1)];
             whiteCardsDeck = getResources().getStringArray(R.array.white);
 
             clientChoices = new ArrayList<>();
@@ -318,7 +318,7 @@ public class HubActivity extends ActionBarActivity {
 
                     //Envoi cartes blanches
                     for(int i = 0; i < 10;i++) {
-                        cards[i] = whiteCardsDeck[rand.nextInt(whiteCardsDeck.length + 1)];
+                        cards[i] = whiteCardsDeck[rand.nextInt(whiteCardsDeck.length - 1)];
                         cards[i] += "_";
                         serverConnectedThread.write(cards[i].getBytes(), true);
                     }
@@ -492,7 +492,6 @@ public class HubActivity extends ActionBarActivity {
                     }else if(state == HubActivity.State.BEGIN){
 
                         state = HubActivity.State.CLIENT;
-                        bytes = mmInStream.read(buffer);
                         blackCard = new String(buffer);
 
                         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
@@ -501,7 +500,6 @@ public class HubActivity extends ActionBarActivity {
                         startActivityForResult(intent, 3);
                     }else if(state == HubActivity.State.SERVER){
                         state = HubActivity.State.RESULT;
-                        bytes = mmInStream.read(buffer);
                         String whiteCard = new String(buffer);
                         if(whiteCard.compareTo(choice) == 0){
                             Log.d("client", "victoire !");
