@@ -482,7 +482,7 @@ public class HubActivity extends ActionBarActivity {
                     bytes = mmInStream.read(buffer);
                     if(nbCards < 10){
                         String s = new String(buffer);
-                        String[] cards = s.split("/");
+                        String[] cards = s.split("_");
                         for(int i = 0;i < cards.length - 1;i++){
                             addCard(cards[i]);
                         }
