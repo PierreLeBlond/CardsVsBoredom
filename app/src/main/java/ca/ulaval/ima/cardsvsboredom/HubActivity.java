@@ -12,10 +12,13 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.os.Handler;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,18 +26,30 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.LogRecord;
 
 /**
  * Created by Pierre on 18/04/2015.
  */
 public class HubActivity extends ActionBarActivity {
 
+    final Handler handler = new Handler();
+
+    final Runnable updateList = new Runnable() {
+        @Override
+        public void run() {
+            arrayAdapter.add(whiteCards[nbCards - 1]);
+            arrayAdapter.notifyDataSetChanged();
+            //Toast.makeText(getApplicationContext(), String.format("nouvelle carte : %s", whiteCards[nbCards - 1]), Toast.LENGTH_LONG).show();
+        }
+    };
+
     private Button continueButton;
 
     private BluetoothAdapter bluetoothAdapter;
 
     ListView listView;
-    ArrayAdapter arrayAdapter;
+    CardAdapter arrayAdapter;
 
     private boolean dealer;
     private String uuid;
@@ -77,8 +92,9 @@ public class HubActivity extends ActionBarActivity {
         dealer = getIntent().getBooleanExtra("dealer", false);
 
         listView = (ListView) findViewById(R.id.hubListView);
-        arrayAdapter = new ArrayAdapter(this, R.layout.list_cell_device);
+        arrayAdapter = new CardAdapter(this, new ArrayList<String>());
         listView.setAdapter(arrayAdapter);
+
 
         uuid = getResources().getString(R.string.uuid);
 
@@ -111,11 +127,13 @@ public class HubActivity extends ActionBarActivity {
             BluetoothDevice device = getIntent().getParcelableExtra("device");
             Log.d("uuid-client", device.getAddress());
 
+            whiteCards = new String[10];
+
             //Connexion au serveur
             connectThread = new ConnectThread(device);
             connectThread.start();
 
-            whiteCards = new String[10];
+
 
 
 
@@ -212,6 +230,10 @@ public class HubActivity extends ActionBarActivity {
         String[] blackCards = getResources().getStringArray(R.array.black);
         String black = blackCards[3];
 
+        for(int i = 0;i < serverConnectedThreads.size();i++){
+            serverConnectedThreads.get(i).write(black.getBytes(), false);
+        }
+
         //Envoi de carte blanche aux clients
         //TO DO : envoie des cartes
 
@@ -219,7 +241,7 @@ public class HubActivity extends ActionBarActivity {
 
         //Lancement du thread d'écoute des réponses
 
-        acceptThread.cancel();
+        /*acceptThread.cancel();
         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
 
         String[] whiteCards = getResources().getStringArray(R.array.white);
@@ -236,12 +258,21 @@ public class HubActivity extends ActionBarActivity {
         intent.putExtra("white", white);
         intent.putExtra("black", black);
 
-        startActivityForResult(intent, 2);
+        startActivityForResult(intent, 2);*/
     }
 
     public void stopGame(View view){
         //Le serveur arrête de recolter des réponses, et kick les clients qui n'on pas répondus
         //C'est à lui de jouer
+    }
+
+    public void addCard(String s){
+        nbCards++;
+        whiteCards[nbCards - 1] = s;
+        Log.d("client", String.format("nouvelle carte : %s", whiteCards[nbCards - 1]));
+        handler.post(updateList);
+
+
     }
 
     private class AcceptThread extends Thread {
@@ -280,6 +311,7 @@ public class HubActivity extends ActionBarActivity {
                     String[] cards = getResources().getStringArray(R.array.white);
 
                     for(int i = 0; i < 10;i++) {
+                        cards[i] += "_";
                         serverConnectedThread.write(cards[i].getBytes(), true);
                     }
 
@@ -339,6 +371,8 @@ public class HubActivity extends ActionBarActivity {
             //Ecoute les reponse du serveur
             clientConnectedThread = new ClientConnectedThread(serverSocket);
             clientConnectedThread.start();
+            //Toast.makeText(getApplicationContext(), "Connexion au serveur réussie, en attente d'instruction !", Toast.LENGTH_LONG).show();
+
         }
 
         /** Will cancel an in-progress connection, and close the socket */
@@ -447,15 +481,24 @@ public class HubActivity extends ActionBarActivity {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
                     if(nbCards < 10){
-                        whiteCards[nbCards] = new String(buffer);
-                        arrayAdapter.add(whiteCards[nbCards]);
-                        nbCards++;
-                        Log.d("client", String.format("nouvelle carte : %s", whiteCards[nbCards]));
+                        String s = new String(buffer);
+                        String[] cards = s.split("/");
+                        for(int i = 0;i < cards.length - 1;i++){
+                            addCard(cards[i]);
+                        }
+                        //Toast.makeText(getApplicationContext(), "Cartes bien reçues !", Toast.LENGTH_LONG).show();
+
 
                     }else{
-                        /*Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
-                        intent.putExtra("white")*/
+
                         Log.d("client", "full hand");
+                        bytes = mmInStream.read(buffer);
+                        String s = new String(buffer);
+
+                        Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
+                        intent.putExtra("white", whiteCards);
+                        intent.putExtra("black", s);
+                        startActivity(intent);
                     }
 
 
@@ -484,5 +527,65 @@ public class HubActivity extends ActionBarActivity {
                 mmSocket.close();
             } catch (IOException e) { }
         }
+    }
+
+    static public class CardAdapter extends ArrayAdapter<String>{
+
+        private ArrayList<String> mCardList;
+        private Activity mActivity;
+
+        public CardAdapter(Activity inActivity, ArrayList<String> inBrandList){
+            super(inActivity, R.layout.list_cell_device, inBrandList);
+            this.mActivity = inActivity;
+            mCardList=inBrandList;
+
+        }
+
+        public void addCard(String card){
+            mCardList.add(card);
+        }
+
+        @Override
+        public int getCount() {
+            // TODO Auto-generated method stub
+            return mCardList.size();
+        }
+
+        @Override
+        public String getItem(int arg0) {
+            // TODO Auto-generated method stub
+            return mCardList.get(arg0);
+        }
+
+        @Override
+        public long getItemId(int arg0) {
+            // TODO Auto-generated method stub
+            return arg0;
+        }
+
+        static class ViewHolder {
+            public TextView name;
+        }
+
+        @Override
+        public View getView(int arg0, View arg1, ViewGroup arg2) {
+
+            View childView = arg1;
+            if(childView == null || childView.getTag() == null){
+
+                childView = mActivity.getLayoutInflater().inflate(R.layout.list_cell_device, null);
+
+                ViewHolder viewHolder = new ViewHolder();
+
+                viewHolder.name = (TextView) childView.findViewById(R.id.game_name);
+
+                childView.setTag(viewHolder);
+            }
+
+            ViewHolder holder = (ViewHolder) childView.getTag();
+            holder.name.setText(mCardList.get(arg0));
+            return childView;
+        }
+
     }
 }
