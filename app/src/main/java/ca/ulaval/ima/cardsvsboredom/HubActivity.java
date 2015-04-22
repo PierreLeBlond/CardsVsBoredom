@@ -124,6 +124,7 @@ public class HubActivity extends ActionBarActivity {
         whiteCards = new String[10];
 
         if(dealer){
+            bluetoothAdapter.setName(getIntent().getStringExtra("gameName"));
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
             startActivityForResult(discoverableIntent, 1);
@@ -209,16 +210,18 @@ public class HubActivity extends ActionBarActivity {
                         serverConnectedThreads.get(i).write(data.getStringExtra("choice").getBytes(), false);
                     }
                 }
+                break;
             case 3://retour du jeu du client
-                if(resultCode != Activity.RESULT_OK && state == State.CLIENT) {
+                if(resultCode != Activity.RESULT_OK ) {
                     Log.e("client", "no cards was picking, operation canceled");
                     Toast.makeText(this, "client canceled the operation", Toast.LENGTH_LONG).show();
-                }else{
+                }else if(state == State.CLIENT){
                     state = State.SERVER;
                     choice = data.getStringExtra("choice");
                     Toast.makeText(this, String.format("choosen card : %s", choice), Toast.LENGTH_LONG).show();
                     clientConnectedThread.write(choice.getBytes());
                 }
+                break;
                 //Envoi au serveur de la réponse
 
                 //Attente de la réponse du serveur sur le gagnant
@@ -252,6 +255,12 @@ public class HubActivity extends ActionBarActivity {
     public void startGame(View view){
 
         if(state == State.BEGIN) {
+            //Le device n'est plus discoverable
+            Intent discoverableIntent = new
+                    Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
+            startActivity(discoverableIntent);
+
             state = State.CLIENT;
             for (int i = 0; i < serverConnectedThreads.size(); i++) {
                 serverConnectedThreads.get(i).write(blackCard.getBytes(), false);
@@ -263,7 +272,8 @@ public class HubActivity extends ActionBarActivity {
 
             Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
 
-            intent.putExtra("white", clientChoices.toArray());
+            String[] white = clientChoices.toArray(new String[clientChoices.size()]);
+            intent.putExtra("white", white);
             intent.putExtra("black", blackCard);
 
             startActivityForResult(intent, 2);
@@ -313,6 +323,7 @@ public class HubActivity extends ActionBarActivity {
                     //Creation ServerConnectedSocket
                     ServerConnectedThread serverConnectedThread = new ServerConnectedThread(socket);
                     serverConnectedThreads.add(serverConnectedThread);
+                    serverConnectedThread.start();
 
                     String cards[] = new String[10];
 

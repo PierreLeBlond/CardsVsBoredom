@@ -46,7 +46,7 @@ public class PlayActivity extends ActionBarActivity {
         whiteCards = getIntent().getStringArrayExtra("white");
         String blackCard = getIntent().getStringExtra("black");
 
-        for(int i = 0;i < 10;i++){
+        for(int i = 0;i < whiteCards.length;i++){
             TextView text = new TextView(getApplicationContext());
 
             String cardText = String.format(blackCard, whiteCards[i]);
