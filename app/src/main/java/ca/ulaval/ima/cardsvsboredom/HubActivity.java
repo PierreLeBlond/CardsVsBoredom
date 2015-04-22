@@ -80,6 +80,8 @@ public class HubActivity extends ActionBarActivity {
         arrayAdapter = new ArrayAdapter(this, R.layout.list_cell_device);
         listView.setAdapter(arrayAdapter);
 
+        uuid = getResources().getString(R.string.uuid);
+
         if(bluetoothAdapter == null){
             Log.e("bluetooth", "bluetooth unavailable");
             Toast.makeText(this, "bluetooth is not available", Toast.LENGTH_LONG).show();
@@ -146,7 +148,7 @@ public class HubActivity extends ActionBarActivity {
                     Toast.makeText(this, "device not discoverable", Toast.LENGTH_LONG).show();
                     finish();
                 }else{
-                    uuid = getResources().getString(R.string.uuid);
+
                     Toast.makeText(this, String.format("device is now discoverable with uuid %s", uuid), Toast.LENGTH_LONG).show();
 
 
