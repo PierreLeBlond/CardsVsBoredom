@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="white">
+        <item>Racism</item>
+        <item>Being on fire</item>
+        <item>Women in yogurt commercials</item>
+        <item>An oversized lollipop</item>
+        <item>Barack Obama</item>
+        <item>Scientology</item>
+        <item>Darth Vader</item>
+        <item>Free samples</item>
+        <item>Advice from a wise, old black man</item>
+        <item>Famine</item>
+        <item>Estrogen</item>
+        <item>Men</item>
+        <item>My relationship status</item>
+        <item>The devil himself</item>
+        <item>MechaHitler</item>
+        <item>Being fabulous</item>
+        <item>The Pope</item>
+        <item>Invading Poland</item>
+        <item>Dead parents</item>
+        <item>Magnets</item>
+        <item>One trillion dollars</item>
+    </string-array>
+
+    <string-array name="black">
+        <item>What\'s that smell ? %1$s</item>
+        <item>How did I lose my virginity ? %1$s</item>
+        <item>I drink to forget %1$s.</item>
+        <item>%1$s. That\'s how I want to die.</item>
+        <item>But before I kill you , Mr. Bond, I must show you %1$s.</item>
+    </string-array>
+</resources>
