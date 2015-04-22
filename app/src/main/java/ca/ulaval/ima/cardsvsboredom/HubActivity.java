@@ -117,9 +117,7 @@ public class HubActivity extends ActionBarActivity {
 
             whiteCards = new String[10];
 
-            //Ecoute les reponse du serveur
-            clientConnectedThread = new ClientConnectedThread(serverSocket);
-            clientConnectedThread.start();
+
 
             //Recuperation des cartes blanches
 
@@ -337,6 +335,10 @@ public class HubActivity extends ActionBarActivity {
                 } catch (IOException closeException) { }
                 return;
             }
+
+            //Ecoute les reponse du serveur
+            clientConnectedThread = new ClientConnectedThread(serverSocket);
+            clientConnectedThread.start();
         }
 
         /** Will cancel an in-progress connection, and close the socket */
