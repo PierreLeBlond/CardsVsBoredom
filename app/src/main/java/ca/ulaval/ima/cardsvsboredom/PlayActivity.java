@@ -53,6 +53,7 @@ public class PlayActivity extends ActionBarActivity {
 
             //int nbCaract = cardText.length();
 
+            text.setPadding(30, 30, 15, 15);
             text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
             text.setTextColor(Color.WHITE);
             text.setBackgroundColor(Color.BLACK);
