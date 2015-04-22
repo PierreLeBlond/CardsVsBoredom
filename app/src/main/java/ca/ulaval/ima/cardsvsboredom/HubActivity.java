@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.logging.LogRecord;
 
@@ -32,6 +33,8 @@ import java.util.logging.LogRecord;
  * Created by Pierre on 18/04/2015.
  */
 public class HubActivity extends ActionBarActivity {
+
+    final Random rand = new Random();
 
     final Handler handler = new Handler();
 
@@ -54,18 +57,27 @@ public class HubActivity extends ActionBarActivity {
     private boolean dealer;
     private String uuid;
 
+    public enum State {
+        BEGIN, CLIENT, SERVER, RESULT
+    }
+    private State state = State.BEGIN;
+
+    private String blackCard;
+
     //Serveur : dealer = true
 
+    private String[] whiteCardsDeck;
     private int clientId;
     private BluetoothServerSocket serverOwnSocket;
     private List<BluetoothSocket> clientSockets;
-    private String[] clientChoices;
+    private List<String> clientChoices;
 
     private AcceptThread acceptThread;
     private List<ServerConnectedThread> serverConnectedThreads;
 
     //Client : dealer = false
     private String[] whiteCards;
+    private String choice;
     private int nbCards = 0;
 
     private BluetoothSocket serverSocket;
@@ -109,12 +121,19 @@ public class HubActivity extends ActionBarActivity {
             startActivityForResult(enableBtIntent, 0);
         }
 
+        whiteCards = new String[10];
+        
         if(dealer){
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
             startActivityForResult(discoverableIntent, 1);
 
-            clientChoices = new String[10];
+            //Choix d'une carte noir
+            String[] blackCards = getResources().getStringArray(R.array.black);
+            blackCard = blackCards[rand.nextInt(blackCards.length + 1)];
+            whiteCardsDeck = getResources().getStringArray(R.array.white);
+
+            clientChoices = new ArrayList<>();
             clientSockets = new ArrayList<>();
             serverConnectedThreads = new ArrayList<>();
 
@@ -127,7 +146,7 @@ public class HubActivity extends ActionBarActivity {
             BluetoothDevice device = getIntent().getParcelableExtra("device");
             Log.d("uuid-client", device.getAddress());
 
-            whiteCards = new String[10];
+
 
             //Connexion au serveur
             connectThread = new ConnectThread(device);
@@ -180,19 +199,25 @@ public class HubActivity extends ActionBarActivity {
                 }
                 break;
             case 2://retour du jeu du server
-                if(resultCode != Activity.RESULT_OK) {
+                if(resultCode != Activity.RESULT_OK && state == State.SERVER) {
                     Log.e("server", "no cards was picking, operation canceled");
                     Toast.makeText(this, "server canceled the operation", Toast.LENGTH_LONG).show();
                 }else{
+                    state = State.RESULT;
                     Toast.makeText(this, String.format("choosen card : %s", data.getStringExtra("choice")), Toast.LENGTH_LONG).show();
-                    //Determination du gagnant !
+                    for(int i = 0;i < serverConnectedThreads.size();i++){
+                        serverConnectedThreads.get(i).write(data.getStringExtra("choice").getBytes(), false);
+                    }
                 }
             case 3://retour du jeu du client
-                if(resultCode != Activity.RESULT_OK) {
+                if(resultCode != Activity.RESULT_OK && state == State.CLIENT) {
                     Log.e("client", "no cards was picking, operation canceled");
                     Toast.makeText(this, "client canceled the operation", Toast.LENGTH_LONG).show();
                 }else{
-                    Toast.makeText(this, String.format("choosen card : %s", data.getStringExtra("choice")), Toast.LENGTH_LONG).show();
+                    state = State.SERVER;
+                    choice = data.getStringExtra("choice");
+                    Toast.makeText(this, String.format("choosen card : %s", choice), Toast.LENGTH_LONG).show();
+                    clientConnectedThread.write(choice.getBytes());
                 }
                 //Envoi au serveur de la réponse
 
@@ -226,44 +251,27 @@ public class HubActivity extends ActionBarActivity {
 
     public void startGame(View view){
 
-        //Choix d'un carte noir
-        String[] blackCards = getResources().getStringArray(R.array.black);
-        String black = blackCards[3];
+        if(state == State.BEGIN) {
+            state = State.CLIENT;
+            for (int i = 0; i < serverConnectedThreads.size(); i++) {
+                serverConnectedThreads.get(i).write(blackCard.getBytes(), false);
+            }
 
-        for(int i = 0;i < serverConnectedThreads.size();i++){
-            serverConnectedThreads.get(i).write(black.getBytes(), false);
+            arrayAdapter.clear();
+        }else if (state == State.CLIENT){
+            state = State.SERVER;
+
+            Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
+
+            intent.putExtra("white", clientChoices.toArray());
+            intent.putExtra("black", blackCard);
+
+            startActivityForResult(intent, 2);
         }
-
-        //Envoi de carte blanche aux clients
-        //TO DO : envoie des cartes
-
-        //Les clients jouent
-
-        //Lancement du thread d'écoute des réponses
-
-        /*acceptThread.cancel();
-        Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
-
-        String[] whiteCards = getResources().getStringArray(R.array.white);
-
-
-        String white[] = new String[10];
-
-        for(int i = 0; i < 10;i++){
-            white[i] = whiteCards[i + 10];
-        }
-
-
-
-        intent.putExtra("white", white);
-        intent.putExtra("black", black);
-
-        startActivityForResult(intent, 2);*/
     }
 
     public void stopGame(View view){
-        //Le serveur arrête de recolter des réponses, et kick les clients qui n'on pas répondus
-        //C'est à lui de jouer
+
     }
 
     public void addCard(String s){
@@ -271,8 +279,6 @@ public class HubActivity extends ActionBarActivity {
         whiteCards[nbCards - 1] = s;
         Log.d("client", String.format("nouvelle carte : %s", whiteCards[nbCards - 1]));
         handler.post(updateList);
-
-
     }
 
     private class AcceptThread extends Thread {
@@ -308,18 +314,14 @@ public class HubActivity extends ActionBarActivity {
                     ServerConnectedThread serverConnectedThread = new ServerConnectedThread(socket);
                     serverConnectedThreads.add(serverConnectedThread);
 
-                    String[] cards = getResources().getStringArray(R.array.white);
+                    String cards[] = new String[10];
 
+                    //Envoi cartes blanches
                     for(int i = 0; i < 10;i++) {
+                        cards[i] = whiteCardsDeck[rand.nextInt(whiteCardsDeck.length + 1)];
                         cards[i] += "_";
                         serverConnectedThread.write(cards[i].getBytes(), true);
                     }
-
-
-
-
-
-                    //Envoi cartes blanches
                     break;
                 }
             }
@@ -420,7 +422,8 @@ public class HubActivity extends ActionBarActivity {
 
                     // Recupère les réponses du client
                     String result = new String(buffer);
-                    clientChoices[clientId] = result;
+                    clientChoices.add(result);
+                    addCard(result);
 
                 } catch (IOException e) {
                     break;
@@ -431,9 +434,6 @@ public class HubActivity extends ActionBarActivity {
         /* Call this from the main activity to send data to the remote device */
         public void write(byte[] bytes, boolean start) {
             try {
-                // Envois la carte noir aux clients
-                //Ou
-                //Envois le résultat aux clients
                 mmOutStream.write(bytes);
 
             } catch (IOException e) { }
@@ -480,7 +480,7 @@ public class HubActivity extends ActionBarActivity {
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
-                    if(nbCards < 10){
+                    if(nbCards < 10 && state == HubActivity.State.BEGIN){
                         String s = new String(buffer);
                         String[] cards = s.split("_");
                         for(int i = 0;i < cards.length - 1;i++){
@@ -489,22 +489,27 @@ public class HubActivity extends ActionBarActivity {
                         //Toast.makeText(getApplicationContext(), "Cartes bien reçues !", Toast.LENGTH_LONG).show();
 
 
-                    }else{
+                    }else if(state == HubActivity.State.BEGIN){
 
-                        Log.d("client", "full hand");
+                        state = HubActivity.State.CLIENT;
                         bytes = mmInStream.read(buffer);
-                        String s = new String(buffer);
+                        blackCard = new String(buffer);
 
                         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                         intent.putExtra("white", whiteCards);
-                        intent.putExtra("black", s);
-                        startActivity(intent);
+                        intent.putExtra("black", blackCard);
+                        startActivityForResult(intent, 3);
+                    }else if(state == HubActivity.State.SERVER){
+                        state = HubActivity.State.RESULT;
+                        bytes = mmInStream.read(buffer);
+                        String whiteCard = new String(buffer);
+                        if(whiteCard.compareTo(choice) == 0){
+                            Log.d("client", "victoire !");
+                        }else{
+                            Log.d("client", "defaite...");
+                        }
+
                     }
-
-
-                    // Recupère les réponses des serveur, avec leur Id
-                    //Si envoi carte noir et main : lance la partie
-                    //Si envoi carte blanche : affiche résultats
 
                 } catch (IOException e) {
                     break;
