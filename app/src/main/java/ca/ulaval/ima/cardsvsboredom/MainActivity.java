@@ -119,6 +119,7 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onResume(){
         super.onResume();
+        arrayAdapter.clear();
         bluetoothAdapter.startDiscovery();
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         registerReceiver(mReceiver, filter);
@@ -140,8 +141,10 @@ public class MainActivity extends ActionBarActivity {
                     Toast.makeText(this, "bluetooth is disabled", Toast.LENGTH_LONG).show();
                     finish();
                 }else{
+                    arrayAdapter.clear();
                     bluetoothAdapter.startDiscovery();
-                }
+                    IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+                    registerReceiver(mReceiver, filter);                }
                 break;
             default:
         }

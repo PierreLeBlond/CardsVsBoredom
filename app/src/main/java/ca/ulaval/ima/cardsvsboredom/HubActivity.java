@@ -40,7 +40,7 @@ public class HubActivity extends ActionBarActivity {
         public void run() {
             arrayAdapter.add(whiteCards[nbCards - 1]);
             arrayAdapter.notifyDataSetChanged();
-            Toast.makeText(getApplicationContext(), String.format("nouvelle carte : %s", whiteCards[nbCards - 1]), Toast.LENGTH_LONG).show();
+            //Toast.makeText(getApplicationContext(), String.format("nouvelle carte : %s", whiteCards[nbCards - 1]), Toast.LENGTH_LONG).show();
         }
     };
 
@@ -230,6 +230,10 @@ public class HubActivity extends ActionBarActivity {
         String[] blackCards = getResources().getStringArray(R.array.black);
         String black = blackCards[3];
 
+        for(int i = 0;i < serverConnectedThreads.size();i++){
+            serverConnectedThreads.get(i).write(black.getBytes(), false);
+        }
+
         //Envoi de carte blanche aux clients
         //TO DO : envoie des cartes
 
@@ -237,7 +241,7 @@ public class HubActivity extends ActionBarActivity {
 
         //Lancement du thread d'écoute des réponses
 
-        acceptThread.cancel();
+        /*acceptThread.cancel();
         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
 
         String[] whiteCards = getResources().getStringArray(R.array.white);
@@ -254,7 +258,7 @@ public class HubActivity extends ActionBarActivity {
         intent.putExtra("white", white);
         intent.putExtra("black", black);
 
-        startActivityForResult(intent, 2);
+        startActivityForResult(intent, 2);*/
     }
 
     public void stopGame(View view){
@@ -306,7 +310,8 @@ public class HubActivity extends ActionBarActivity {
 
                     String[] cards = getResources().getStringArray(R.array.white);
 
-                    for(int i = 0; i < 1;i++) {
+                    for(int i = 0; i < 10;i++) {
+                        cards[i] += "_";
                         serverConnectedThread.write(cards[i].getBytes(), true);
                     }
 
@@ -366,6 +371,8 @@ public class HubActivity extends ActionBarActivity {
             //Ecoute les reponse du serveur
             clientConnectedThread = new ClientConnectedThread(serverSocket);
             clientConnectedThread.start();
+            //Toast.makeText(getApplicationContext(), "Connexion au serveur réussie, en attente d'instruction !", Toast.LENGTH_LONG).show();
+
         }
 
         /** Will cancel an in-progress connection, and close the socket */
@@ -475,11 +482,23 @@ public class HubActivity extends ActionBarActivity {
                     bytes = mmInStream.read(buffer);
                     if(nbCards < 10){
                         String s = new String(buffer);
-                        addCard(s);
+                        String[] cards = s.split("/");
+                        for(int i = 0;i < cards.length - 1;i++){
+                            addCard(cards[i]);
+                        }
+                        //Toast.makeText(getApplicationContext(), "Cartes bien reçues !", Toast.LENGTH_LONG).show();
+
+
                     }else{
-                        /*Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
-                        intent.putExtra("white")*/
+
                         Log.d("client", "full hand");
+                        bytes = mmInStream.read(buffer);
+                        String s = new String(buffer);
+
+                        Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
+                        intent.putExtra("white", whiteCards);
+                        intent.putExtra("black", s);
+                        startActivity(intent);
                     }
 
 
