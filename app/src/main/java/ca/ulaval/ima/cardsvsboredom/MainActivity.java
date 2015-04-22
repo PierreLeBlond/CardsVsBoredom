@@ -56,6 +56,7 @@ public class MainActivity extends ActionBarActivity {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 // Add the name and address to an array adapter to show in a ListView
                 arrayAdapter.add(device);
+                Toast.makeText(getApplicationContext(), String.format("device found : %s!", device.getName()), Toast.LENGTH_LONG).show();
 
 
             }
@@ -83,6 +84,8 @@ public class MainActivity extends ActionBarActivity {
             long arg3) {
                 // TODO Auto-generated method stub
                 selectedDevice = (BluetoothDevice)arg0.getItemAtPosition(arg2);
+                joinButton.setClickable(true);
+                arg1.setSelected(true);
             }
         });
 
@@ -106,6 +109,7 @@ public class MainActivity extends ActionBarActivity {
         }
 
 // Register the BroadcastReceiver
+        bluetoothAdapter.startDiscovery();
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         registerReceiver(mReceiver, filter); // Don't forget to unregister during onDestroy
     }
@@ -162,12 +166,12 @@ public class MainActivity extends ActionBarActivity {
 
     public void join(View view){
         createErrorText.setText("");
-        if(listView.getCheckedItemPosition() == AdapterView.INVALID_POSITION){
+        if(selectedDevice == null && listView.getCheckedItemPosition() == AdapterView.INVALID_POSITION){
             createErrorText.setText(R.string.error_join);
         }else{
             Intent intent = new Intent(getApplicationContext(), HubActivity.class);
             intent.putExtra("dealer", false);
-            intent.putExtra("data", selectedDevice);
+            intent.putExtra("device", selectedDevice);
             startActivity(intent);
         }
     }

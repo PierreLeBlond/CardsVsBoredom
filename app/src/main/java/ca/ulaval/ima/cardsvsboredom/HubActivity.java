@@ -12,7 +12,9 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -30,17 +32,36 @@ public class HubActivity extends ActionBarActivity {
     private Button continueButton;
 
     private BluetoothAdapter bluetoothAdapter;
-    private BluetoothServerSocket serverSocket;
-    private List<BluetoothSocket> clientSockets;
+
+    ListView listView;
+    ArrayAdapter arrayAdapter;
 
     private boolean dealer;
+    private String uuid;
+
+    //Serveur : dealer = true
 
     private int clientId;
+    private BluetoothServerSocket serverOwnSocket;
+    private List<BluetoothSocket> clientSockets;
     private String[] clientChoices;
 
     private AcceptThread acceptThread;
+    private List<ServerConnectedThread> serverConnectedThreads;
 
-    private UUID uuid;
+    //Client : dealer = false
+    private String[] whiteCards;
+    private int nbCards = 0;
+
+    private BluetoothSocket serverSocket;
+
+    private ConnectThread connectThread;
+    private ClientConnectedThread clientConnectedThread;
+
+
+
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +75,10 @@ public class HubActivity extends ActionBarActivity {
         continueButton.setVisibility(View.GONE);
 
         dealer = getIntent().getBooleanExtra("dealer", false);
+
+        listView = (ListView) findViewById(R.id.hubListView);
+        arrayAdapter = new ArrayAdapter(this, R.layout.list_cell_device);
+        listView.setAdapter(arrayAdapter);
 
         if(bluetoothAdapter == null){
             Log.e("bluetooth", "bluetooth unavailable");
@@ -73,16 +98,28 @@ public class HubActivity extends ActionBarActivity {
 
             clientChoices = new String[10];
 
+            //Ecoute les connexions clients
+            acceptThread = new AcceptThread();
+            acceptThread.start();
+
 
         }else{
-            BluetoothDevice device = getIntent().getParcelableExtra("data");
-            Log.d("uuid-client", device.getUuids().toString());
+            BluetoothDevice device = getIntent().getParcelableExtra("device");
+            Log.d("uuid-client", device.getAddress());
 
             //Connexion au serveur
-            
+            connectThread = new ConnectThread(device);
+            connectThread.start();
 
+            whiteCards = new String[10];
 
-            //Attente de l'envoi de données de la part du serveur
+            //Ecoute les reponse du serveur
+            clientConnectedThread = new ClientConnectedThread(serverSocket);
+            clientConnectedThread.start();
+
+            //Recuperation des cartes blanches
+
+            //Attente de l'envoi de la carte noir de la part du serveur
 
             //Lancement de la partie
         }
@@ -109,8 +146,8 @@ public class HubActivity extends ActionBarActivity {
                     Toast.makeText(this, "device not discoverable", Toast.LENGTH_LONG).show();
                     finish();
                 }else{
-                    uuid = UUID.randomUUID();
-                    Toast.makeText(this, String.format("device is now discoverable with uuid %s", uuid.toString()), Toast.LENGTH_LONG).show();
+                    uuid = getResources().getString(R.string.uuid);
+                    Toast.makeText(this, String.format("device is now discoverable with uuid %s", uuid), Toast.LENGTH_LONG).show();
 
 
                     Log.d("uuid-server", uuid.toString());
@@ -173,7 +210,7 @@ public class HubActivity extends ActionBarActivity {
         String[] blackCards = getResources().getStringArray(R.array.black);
         String black = blackCards[3];
 
-        //Envoi des cartes aux clients
+        //Envoi de carte blanche aux clients
         //TO DO : envoie des cartes
 
         //Les clients jouent
@@ -214,7 +251,7 @@ public class HubActivity extends ActionBarActivity {
             // because mmServerSocket is final
             BluetoothServerSocket tmp = null;
             try {
-                tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord("myBluetooth", uuid);
+                tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord("myBluetooth", UUID.fromString(uuid));
             } catch (IOException e) { }
             mmServerSocket = tmp;
         }
@@ -233,6 +270,22 @@ public class HubActivity extends ActionBarActivity {
                 if (socket != null) {
                     // Do work to manage the connection (in a separate thread)
                     clientSockets.add(socket);
+
+                    //Creation ServerConnectedSocket
+                    ServerConnectedThread serverConnectedThread = new ServerConnectedThread(socket);
+                    serverConnectedThreads.add(serverConnectedThread);
+
+                    String[] cards = getResources().getStringArray(R.array.white);
+
+                    for(int i = 0; i < 10;i++) {
+                        serverConnectedThread.write(cards[i].getBytes(), true);
+                    }
+
+
+
+
+
+                    //Envoi cartes blanches
                     break;
                 }
             }
@@ -248,7 +301,7 @@ public class HubActivity extends ActionBarActivity {
     }
 
     private class ConnectThread extends Thread {
-        private final BluetoothSocket mmSocket;
+        //private final BluetoothSocket mmSocket;
         private final BluetoothDevice mmDevice;
 
         public ConnectThread(BluetoothDevice device) {
@@ -260,9 +313,9 @@ public class HubActivity extends ActionBarActivity {
             // Get a BluetoothSocket to connect with the given BluetoothDevice
             try {
                 // TO DO : get UUID from server
-                tmp = device.createRfcommSocketToServiceRecord(uuid);
+                tmp = device.createRfcommSocketToServiceRecord(UUID.fromString(uuid));
             } catch (IOException e) { }
-            mmSocket = tmp;
+            serverSocket = tmp;
         }
 
         public void run() {
@@ -272,11 +325,11 @@ public class HubActivity extends ActionBarActivity {
             try {
                 // Connect the device through the socket. This will block
                 // until it succeeds or throws an exception
-                mmSocket.connect();
+                serverSocket.connect();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and get out
                 try {
-                    mmSocket.close();
+                    serverSocket.close();
                 } catch (IOException closeException) { }
                 return;
             }
@@ -285,7 +338,7 @@ public class HubActivity extends ActionBarActivity {
         /** Will cancel an in-progress connection, and close the socket */
         public void cancel() {
             try {
-                mmSocket.close();
+                serverSocket.close();
             } catch (IOException e) { }
         }
     }
@@ -297,9 +350,8 @@ public class HubActivity extends ActionBarActivity {
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
-        private int clientId;
 
-        public ServerConnectedThread(BluetoothSocket socket, int id) {
+        public ServerConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
@@ -313,7 +365,6 @@ public class HubActivity extends ActionBarActivity {
 
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
-            this.clientId = id;
         }
 
         public void run() {
@@ -389,6 +440,18 @@ public class HubActivity extends ActionBarActivity {
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
+                    if(nbCards < 10){
+                        whiteCards[nbCards] = new String(buffer);
+                        arrayAdapter.add(whiteCards[nbCards]);
+                        nbCards++;
+                        Log.d("client", String.format("nouvelle carte : %s", whiteCards[nbCards]));
+
+                    }else{
+                        /*Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
+                        intent.putExtra("white")*/
+                        Log.d("client", "full hand");
+                    }
+
 
                     // Recupère les réponses des serveur, avec leur Id
                     //Si envoi carte noir et main : lance la partie
