@@ -42,8 +42,19 @@ public class HubActivity extends ActionBarActivity {
         @Override
         public void run() {
             arrayAdapter.add(whiteCards[nbCards - 1]);
+            if(state == State.CLIENT)
+                Toast.makeText(getApplicationContext(), "Un joueur a fait son choix !", Toast.LENGTH_LONG).show();
             arrayAdapter.notifyDataSetChanged();
-            //Toast.makeText(getApplicationContext(), String.format("nouvelle carte : %s", whiteCards[nbCards - 1]), Toast.LENGTH_LONG).show();
+        }
+    };
+
+    final Runnable updatePlayerList = new Runnable(){
+        @Override
+    public void run(){
+            arrayAdapter.add(players[nbPlayer - 1]);
+            Toast.makeText(getApplicationContext(), "Un nouveau joueur entre dans le jeu !", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "bluetooth is disabled", Toast.LENGTH_LONG).show();
+            arrayAdapter.notifyDataSetChanged();
         }
     };
 
@@ -65,10 +76,10 @@ public class HubActivity extends ActionBarActivity {
     private String blackCard;
 
     //Serveur : dealer = true
+    private String[] players;
+    private int nbPlayer = 0;
 
     private String[] whiteCardsDeck;
-    private int clientId;
-    private BluetoothServerSocket serverOwnSocket;
     private List<BluetoothSocket> clientSockets;
     private List<String> clientChoices;
 
@@ -137,6 +148,7 @@ public class HubActivity extends ActionBarActivity {
             clientChoices = new ArrayList<>();
             clientSockets = new ArrayList<>();
             serverConnectedThreads = new ArrayList<>();
+            players = new String[10];
 
             //Ecoute les connexions clients
             acceptThread = new AcceptThread();
@@ -319,6 +331,10 @@ public class HubActivity extends ActionBarActivity {
                 if (socket != null) {
                     // Do work to manage the connection (in a separate thread)
                     clientSockets.add(socket);
+                    players[nbPlayer] = socket.getRemoteDevice().getName();
+                    nbPlayer++;
+                    handler.post(updatePlayerList);
+
 
                     //Creation ServerConnectedSocket
                     ServerConnectedThread serverConnectedThread = new ServerConnectedThread(socket);

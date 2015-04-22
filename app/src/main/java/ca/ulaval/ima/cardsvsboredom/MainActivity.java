@@ -72,6 +72,7 @@ public class MainActivity extends ActionBarActivity {
 
         myPageButton    = (Button)      findViewById(R.id.myPage_button);
         joinButton      = (Button)      findViewById(R.id.join_button);
+        joinButton.setEnabled(false);
         createButton    = (Button)      findViewById(R.id.create_button);
         createEditText  = (EditText)    findViewById(R.id.create_edit_text);
         joinErrorText   = (TextView)    findViewById(R.id.error_join);
@@ -87,7 +88,8 @@ public class MainActivity extends ActionBarActivity {
                 // TODO Auto-generated method stub
                 selectedDevice = (BluetoothDevice)arg0.getItemAtPosition(arg2);
                 joinButton.setClickable(true);
-                arg1.setSelected(true);
+                joinButton.setEnabled(true);
+                listView.setItemChecked(arg2, true);
             }
         });
 
