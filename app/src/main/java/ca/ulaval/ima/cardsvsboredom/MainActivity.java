@@ -57,9 +57,11 @@ public class MainActivity extends ActionBarActivity {
                 // Add the name and address to an array adapter to show in a ListView
                 arrayAdapter.add(device);
                 Toast.makeText(getApplicationContext(), String.format("device found : %s!", device.getName()), Toast.LENGTH_LONG).show();
-
-
             }
+        }
+
+        public void onDestroy(){
+            unregisterReceiver(mReceiver);
         }
     };
 
@@ -115,6 +117,20 @@ public class MainActivity extends ActionBarActivity {
     }
 
     @Override
+    protected void onResume(){
+        super.onResume();
+        bluetoothAdapter.startDiscovery();
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        registerReceiver(mReceiver, filter);
+    }
+
+    @Override
+    protected void onPause(){
+        super.onPause();
+        unregisterReceiver(mReceiver);
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {
         switch(requestCode) {
@@ -123,6 +139,8 @@ public class MainActivity extends ActionBarActivity {
                     Log.e("bluetooth", "bluetooth disabled");
                     Toast.makeText(this, "bluetooth is disabled", Toast.LENGTH_LONG).show();
                     finish();
+                }else{
+                    bluetoothAdapter.startDiscovery();
                 }
                 break;
             default:
@@ -193,7 +211,7 @@ public class MainActivity extends ActionBarActivity {
 
         }
 
-        public void addBrand(BluetoothDevice device){
+        public void addDevice(BluetoothDevice device){
             mDeviceList.add(device);
         }
 
