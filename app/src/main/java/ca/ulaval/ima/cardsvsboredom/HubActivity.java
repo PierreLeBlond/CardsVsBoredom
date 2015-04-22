@@ -99,6 +99,8 @@ public class HubActivity extends ActionBarActivity {
             startActivityForResult(discoverableIntent, 1);
 
             clientChoices = new String[10];
+            clientSockets = new ArrayList<>();
+            serverConnectedThreads = new ArrayList<>();
 
             //Ecoute les connexions clients
             acceptThread = new AcceptThread();
