@@ -555,14 +555,16 @@ public class HubActivity extends ActionBarActivity {
         public void run() {
             byte[] buffer = new byte[1024];  // buffer store for the stream
             int bytes; // bytes returned from read()
+            int offset = 0;
 
             // Keep listening to the InputStream until an exception occurs
             while (true) {
                 try {
                     // Read from the InputStream
 
+                    bytes = mmInStream.read(buffer, offset, 1024);
                     if(nbCards < 10 && state == HubActivity.State.BEGIN){
-                        bytes = mmInStream.read(buffer);
+
                         String s = new String(buffer);
                         String[] cards = s.split("/");
                         for(int i = 0;i < cards.length - 1 && i < 10;i++){
@@ -570,11 +572,9 @@ public class HubActivity extends ActionBarActivity {
                             addCard(cards[i]);
                         }
                         //Toast.makeText(getApplicationContext(), "Cartes bien reçues !", Toast.LENGTH_LONG).show();
-
+                        offset = bytes;
 
                     }else if(state == HubActivity.State.BEGIN){
-                        mmInStream.reset();
-                        bytes = mmInStream.read(buffer);
 
                         state = HubActivity.State.CLIENT;
                         blackCard = new String(buffer);
@@ -584,6 +584,7 @@ public class HubActivity extends ActionBarActivity {
                         intent.putExtra("white", whiteCards);
                         intent.putExtra("black", blackCard);
                         startActivityForResult(intent, 3);
+                        offset = bytes;
                     }else if(state == HubActivity.State.SERVER){
                         state = HubActivity.State.RESULT;
                         String whiteCard = new String(buffer);
