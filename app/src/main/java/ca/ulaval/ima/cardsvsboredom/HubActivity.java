@@ -143,7 +143,12 @@ public class HubActivity extends ActionBarActivity {
         }
 
         whiteCards = new String[10];
-        blackCardText = (TextView)findViewById(R.id.HubBlackCard_text);
+        /*blackCardText = (TextView)findViewById(R.id.HubBlackCard_text);
+
+        blackCardText.setPadding(30, 30, 15, 15);
+        blackCardText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
+        blackCardText.setTextColor(Color.WHITE);
+        blackCardText.setBackgroundColor(Color.BLACK);*/
 
         if(dealer){
             bluetoothAdapter.setName(getIntent().getStringExtra("gameName"));
@@ -155,11 +160,8 @@ public class HubActivity extends ActionBarActivity {
             String[] blackCards = getResources().getStringArray(R.array.black);
             blackCard = blackCards[rand.nextInt(blackCards.length - 1)];
 
-            blackCardText.setPadding(30, 30, 15, 15);
-            blackCardText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
-            blackCardText.setTextColor(Color.WHITE);
-            blackCardText.setBackgroundColor(Color.BLACK);
-            blackCardText.setText(blackCard);
+
+            //blackCardText.setText(blackCard);
             whiteCardsDeck = getResources().getStringArray(R.array.white);
 
             clientChoices = new ArrayList<>();
@@ -173,7 +175,6 @@ public class HubActivity extends ActionBarActivity {
 
 
         }else{
-            blackCardText.setText("");
 
             BluetoothDevice device = getIntent().getParcelableExtra("device");
             Log.d("uuid-client", device.getAddress());
@@ -276,8 +277,8 @@ public class HubActivity extends ActionBarActivity {
         super.onDestroy();
         if(dealer){
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-            startActivityForResult(discoverableIntent, 1);
+            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1);
+            startActivity(discoverableIntent);
             for(int i = 0; i < serverConnectedThreads.size();i++) {
                 serverConnectedThreads.get(i).cancel();
             }
@@ -535,6 +536,7 @@ public class HubActivity extends ActionBarActivity {
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
+        private boolean read;
 
         public ClientConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
@@ -556,15 +558,19 @@ public class HubActivity extends ActionBarActivity {
             byte[] buffer = new byte[1024];  // buffer store for the stream
             int bytes; // bytes returned from read()
             int offset = 0;
+            read = true;
 
             // Keep listening to the InputStream until an exception occurs
-            while (true) {
+            while (read) {
                 try {
                     // Read from the InputStream
 
-                    bytes = mmInStream.read(buffer, offset, 1024);
-                    if(nbCards < 10 && state == HubActivity.State.BEGIN){
+                    bytes = mmInStream.read(buffer);
 
+                    if(nbCards < 10 && state == HubActivity.State.BEGIN){
+                        /*byte result[] = new byte[bytes];
+                        for(int i = 0;i < bytes;i++)
+                            result[i] = buffer[i];*/
                         String s = new String(buffer);
                         String[] cards = s.split("/");
                         for(int i = 0;i < cards.length - 1 && i < 10;i++){
@@ -572,20 +578,23 @@ public class HubActivity extends ActionBarActivity {
                             addCard(cards[i]);
                         }
                         //Toast.makeText(getApplicationContext(), "Cartes bien reçues !", Toast.LENGTH_LONG).show();
-                        offset = bytes;
 
                     }else if(state == HubActivity.State.BEGIN){
-
                         state = HubActivity.State.CLIENT;
+                        /*byte result[] = new byte[bytes];
+                        for(int i = 0;i < bytes;i++)
+                            result[i] = buffer[i];*/
+
                         blackCard = new String(buffer);
-                        blackCardText.setText(blackCard);
 
                         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                         intent.putExtra("white", whiteCards);
                         intent.putExtra("black", blackCard);
                         startActivityForResult(intent, 3);
-                        offset = bytes;
                     }else if(state == HubActivity.State.SERVER){
+                        /*byte result[] = new byte[bytes];
+                        for(int i = 0;i < bytes;i++)
+                            result[i] = buffer[i];*/
                         state = HubActivity.State.RESULT;
                         String whiteCard = new String(buffer);
                         if(whiteCard.compareTo(choice) == 0){
@@ -619,8 +628,13 @@ public class HubActivity extends ActionBarActivity {
         /* Call this from the main activity to shutdown the connection */
         public void cancel() {
             try {
+
                 mmSocket.close();
             } catch (IOException e) { }
+        }
+
+        public void pause(){
+            read = false;
         }
     }
 
