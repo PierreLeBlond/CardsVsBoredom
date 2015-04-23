@@ -240,7 +240,8 @@ public class HubActivity extends ActionBarActivity {
                     Toast.makeText(this, String.format("choosen card : %s", data.getStringExtra("choice")), Toast.LENGTH_LONG).show();
                     for(int i = 0;i < serverConnectedThreads.size();i++){
                         try{
-                            serverConnectedThreads.get(i).write(data.getStringExtra("choice").getBytes("UTF-8"), false);
+                            String s = data.getStringExtra("choice") + "/";
+                            serverConnectedThreads.get(i).write(s.getBytes("UTF-8"), false);
                         }catch(UnsupportedEncodingException e){
 
                         }
@@ -324,7 +325,8 @@ public class HubActivity extends ActionBarActivity {
             state = State.CLIENT;
             for (int i = 0; i < serverConnectedThreads.size(); i++) {
                 try{
-                    serverConnectedThreads.get(i).write(blackCard.getBytes("UTF-8"), false);
+                    String s = blackCard + "/";
+                    serverConnectedThreads.get(i).write(s.getBytes("UTF-8"), false);
                 }catch(UnsupportedEncodingException e){
 
                 }
@@ -474,11 +476,13 @@ public class HubActivity extends ActionBarActivity {
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
+        private boolean read = false;
 
         public ServerConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
+
 
             // Get the input and output streams, using temp objects because
             // member streams are final
@@ -492,12 +496,13 @@ public class HubActivity extends ActionBarActivity {
         }
 
         public void run() {
+            read = true;
             byte[] buffer = new byte[1024];  // buffer store for the stream
             int bytes; // bytes returned from read()
 
 
             // Keep listening to the InputStream until an exception occurs
-            while (true) {
+            while (read) {
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
@@ -505,6 +510,7 @@ public class HubActivity extends ActionBarActivity {
                     // Recupère les réponses du client
                     String result = new String(buffer);
                     clientChoices.add(result);
+                    nbCards++;
                     addCard(result);
 
                 } catch (IOException e) {
@@ -524,6 +530,7 @@ public class HubActivity extends ActionBarActivity {
         /* Call this from the main activity to shutdown the connection */
         public void cancel() {
             try {
+                read = false;
                 mmSocket.close();
             } catch (IOException e) { }
         }
@@ -585,7 +592,9 @@ public class HubActivity extends ActionBarActivity {
                         for(int i = 0;i < bytes;i++)
                             result[i] = buffer[i];*/
 
-                        blackCard = new String(buffer);
+                        String s = new String(buffer);
+                        String[] cards = s.split("/");
+                        blackCard = cards[0];
 
                         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                         intent.putExtra("white", whiteCards);
@@ -596,7 +605,9 @@ public class HubActivity extends ActionBarActivity {
                         for(int i = 0;i < bytes;i++)
                             result[i] = buffer[i];*/
                         state = HubActivity.State.RESULT;
-                        String whiteCard = new String(buffer);
+                        String s = new String(buffer);
+                        String[] cards = s.split("/");
+                        String whiteCard = cards[0];
                         if(whiteCard.compareTo(choice) == 0){
                             Log.d("client", "victoire !");
                             Intent intent = new Intent(getApplicationContext(), FavoriteActivity.class);
@@ -606,6 +617,11 @@ public class HubActivity extends ActionBarActivity {
                             startActivity(intent);
                         }else{
                             Log.d("client", "defaite...");
+                            Intent intent = new Intent(getApplicationContext(), FavoriteActivity.class);
+                            intent.putExtra("white", whiteCard);
+                            intent.putExtra("black", blackCard);
+                            intent.putExtra("victory", false);
+                            startActivity(intent);
                         }
 
                     }
@@ -628,7 +644,7 @@ public class HubActivity extends ActionBarActivity {
         /* Call this from the main activity to shutdown the connection */
         public void cancel() {
             try {
-
+                read = false;
                 mmSocket.close();
             } catch (IOException e) { }
         }
