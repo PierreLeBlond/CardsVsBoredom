@@ -6,9 +6,11 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -23,6 +25,7 @@ import android.os.Handler;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -41,7 +44,10 @@ public class HubActivity extends ActionBarActivity {
     final Runnable updateList = new Runnable() {
         @Override
         public void run() {
-            arrayAdapter.add(whiteCards[nbCards - 1]);
+            arrayAdapter.clear();
+            for(int i = 0; i < nbCards;i++) {
+                arrayAdapter.add(whiteCards[i]);
+            }
             if(state == State.CLIENT)
                 Toast.makeText(getApplicationContext(), "Un joueur a fait son choix !", Toast.LENGTH_LONG).show();
             arrayAdapter.notifyDataSetChanged();
@@ -50,10 +56,12 @@ public class HubActivity extends ActionBarActivity {
 
     final Runnable updatePlayerList = new Runnable(){
         @Override
-    public void run(){
-            arrayAdapter.add(players[nbPlayer - 1]);
+        public void run(){
+            arrayAdapter.clear();
+            for(int i = 0;i < nbPlayer;i++) {
+                arrayAdapter.add(players[i]);
+            }
             Toast.makeText(getApplicationContext(), "Un nouveau joueur entre dans le jeu !", Toast.LENGTH_LONG).show();
-            Toast.makeText(getApplicationContext(), "bluetooth is disabled", Toast.LENGTH_LONG).show();
             arrayAdapter.notifyDataSetChanged();
         }
     };
@@ -85,6 +93,8 @@ public class HubActivity extends ActionBarActivity {
 
     private AcceptThread acceptThread;
     private List<ServerConnectedThread> serverConnectedThreads;
+
+    private TextView blackCardText;
 
     //Client : dealer = false
     private String[] whiteCards;
@@ -133,6 +143,7 @@ public class HubActivity extends ActionBarActivity {
         }
 
         whiteCards = new String[10];
+        blackCardText = (TextView)findViewById(R.id.HubBlackCard_text);
 
         if(dealer){
             bluetoothAdapter.setName(getIntent().getStringExtra("gameName"));
@@ -143,6 +154,12 @@ public class HubActivity extends ActionBarActivity {
             //Choix d'une carte noir
             String[] blackCards = getResources().getStringArray(R.array.black);
             blackCard = blackCards[rand.nextInt(blackCards.length - 1)];
+
+            blackCardText.setPadding(30, 30, 15, 15);
+            blackCardText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
+            blackCardText.setTextColor(Color.WHITE);
+            blackCardText.setBackgroundColor(Color.BLACK);
+            blackCardText.setText(blackCard);
             whiteCardsDeck = getResources().getStringArray(R.array.white);
 
             clientChoices = new ArrayList<>();
@@ -156,6 +173,8 @@ public class HubActivity extends ActionBarActivity {
 
 
         }else{
+            blackCardText.setText("");
+
             BluetoothDevice device = getIntent().getParcelableExtra("device");
             Log.d("uuid-client", device.getAddress());
 
@@ -219,8 +238,15 @@ public class HubActivity extends ActionBarActivity {
                     state = State.RESULT;
                     Toast.makeText(this, String.format("choosen card : %s", data.getStringExtra("choice")), Toast.LENGTH_LONG).show();
                     for(int i = 0;i < serverConnectedThreads.size();i++){
-                        serverConnectedThreads.get(i).write(data.getStringExtra("choice").getBytes(), false);
+                        try{
+                            serverConnectedThreads.get(i).write(data.getStringExtra("choice").getBytes("UTF-8"), false);
+                        }catch(UnsupportedEncodingException e){
+
+                        }
+                        serverConnectedThreads.get(i).cancel();
                     }
+                    acceptThread.cancel();
+                    finish();
                 }
                 break;
             case 3://retour du jeu du client
@@ -231,16 +257,37 @@ public class HubActivity extends ActionBarActivity {
                     state = State.SERVER;
                     choice = data.getStringExtra("choice");
                     Toast.makeText(this, String.format("choosen card : %s", choice), Toast.LENGTH_LONG).show();
-                    clientConnectedThread.write(choice.getBytes());
+                    try{
+                        clientConnectedThread.write(choice.getBytes("UTF-8"));
+                    }catch(UnsupportedEncodingException e){
+
+                    }
                 }
                 break;
-                //Envoi au serveur de la réponse
+            //Envoi au serveur de la réponse
 
-                //Attente de la réponse du serveur sur le gagnant
+            //Attente de la réponse du serveur sur le gagnant
             default:
         }
     }
 
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        if(dealer){
+            Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+            startActivityForResult(discoverableIntent, 1);
+            for(int i = 0; i < serverConnectedThreads.size();i++) {
+                serverConnectedThreads.get(i).cancel();
+            }
+            acceptThread.cancel();
+        }else{
+                clientConnectedThread.cancel();
+                connectThread.cancel();
+        }
+        finish();
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -275,7 +322,11 @@ public class HubActivity extends ActionBarActivity {
 
             state = State.CLIENT;
             for (int i = 0; i < serverConnectedThreads.size(); i++) {
-                serverConnectedThreads.get(i).write(blackCard.getBytes(), false);
+                try{
+                    serverConnectedThreads.get(i).write(blackCard.getBytes("UTF-8"), false);
+                }catch(UnsupportedEncodingException e){
+
+                }
             }
 
             arrayAdapter.clear();
@@ -297,7 +348,6 @@ public class HubActivity extends ActionBarActivity {
     }
 
     public void addCard(String s){
-        nbCards++;
         whiteCards[nbCards - 1] = s;
         Log.d("client", String.format("nouvelle carte : %s", whiteCards[nbCards - 1]));
         handler.post(updateList);
@@ -346,8 +396,12 @@ public class HubActivity extends ActionBarActivity {
                     //Envoi cartes blanches
                     for(int i = 0; i < 10;i++) {
                         cards[i] = whiteCardsDeck[rand.nextInt(whiteCardsDeck.length - 1)];
-                        cards[i] += "_";
-                        serverConnectedThread.write(cards[i].getBytes(), true);
+                        cards[i] += "/";
+                        try {
+                            serverConnectedThread.write(cards[i].getBytes("UTF-8"), true);
+                        }catch(UnsupportedEncodingException e){
+
+                        }
                     }
                     break;
                 }
@@ -506,20 +560,25 @@ public class HubActivity extends ActionBarActivity {
             while (true) {
                 try {
                     // Read from the InputStream
-                    bytes = mmInStream.read(buffer);
+
                     if(nbCards < 10 && state == HubActivity.State.BEGIN){
+                        bytes = mmInStream.read(buffer);
                         String s = new String(buffer);
-                        String[] cards = s.split("_");
-                        for(int i = 0;i < cards.length - 1;i++){
+                        String[] cards = s.split("/");
+                        for(int i = 0;i < cards.length - 1 && i < 10;i++){
+                            nbCards++;
                             addCard(cards[i]);
                         }
                         //Toast.makeText(getApplicationContext(), "Cartes bien reçues !", Toast.LENGTH_LONG).show();
 
 
                     }else if(state == HubActivity.State.BEGIN){
+                        mmInStream.reset();
+                        bytes = mmInStream.read(buffer);
 
                         state = HubActivity.State.CLIENT;
                         blackCard = new String(buffer);
+                        blackCardText.setText(blackCard);
 
                         Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                         intent.putExtra("white", whiteCards);

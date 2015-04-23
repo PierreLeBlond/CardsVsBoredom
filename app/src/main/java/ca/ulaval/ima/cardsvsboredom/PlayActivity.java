@@ -27,6 +27,7 @@ public class PlayActivity extends ActionBarActivity {
     private ViewFlipper viewFlipper;
 
     private ArrayList<TextView> hand;
+    private String[] cards;
     private String[] whiteCards;
 
     private float lastX;
@@ -40,16 +41,19 @@ public class PlayActivity extends ActionBarActivity {
 
         hand = new ArrayList<>();
 
+
         //XmlPullParser parser = getApplicationContext().getResources().getLayout(myResouce);
         //AttributeSet attributes = Xml.asAttributeSet(parser);
 
         whiteCards = getIntent().getStringArrayExtra("white");
         String blackCard = getIntent().getStringExtra("black");
 
-        for(int i = 0;i < whiteCards.length;i++){
-            TextView text = new TextView(getApplicationContext());
+        cards = new String[whiteCards.length];
 
-            String cardText = String.format(blackCard, whiteCards[i]);
+        for(int i = 0;i < whiteCards.length;i++){
+            cards[i] = blackCard;
+            TextView text = new TextView(getApplicationContext());
+            cards[i] = String.format(cards[i], whiteCards[i]);
 
             //int nbCaract = cardText.length();
 
@@ -58,7 +62,7 @@ public class PlayActivity extends ActionBarActivity {
             text.setTextColor(Color.WHITE);
             text.setBackgroundColor(Color.BLACK);
             hand.add(text);
-            text.setText(cardText);
+            text.setText(cards[i]);
             viewFlipper.addView(text);
 
             ViewGroup.LayoutParams params = text.getLayoutParams();
