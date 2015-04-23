@@ -14,5 +14,8 @@
     <string name="continue_button">Launch the game</string>
     <string name="choose_button">Select this card</string>
     <string name="swap_tips"><i>Swap left/right to change card</i></string>
+    <string name="title_activity_favorite">FavoriteActivity</string>
+
+    <string name="hello_world">Hello world!</string>
 
 </resources>

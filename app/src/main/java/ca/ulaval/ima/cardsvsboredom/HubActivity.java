@@ -590,6 +590,11 @@ public class HubActivity extends ActionBarActivity {
                         String whiteCard = new String(buffer);
                         if(whiteCard.compareTo(choice) == 0){
                             Log.d("client", "victoire !");
+                            Intent intent = new Intent(getApplicationContext(), FavoriteActivity.class);
+                            intent.putExtra("white", whiteCard);
+                            intent.putExtra("black", blackCard);
+                            intent.putExtra("victory", true);
+                            startActivity(intent);
                         }else{
                             Log.d("client", "defaite...");
                         }
